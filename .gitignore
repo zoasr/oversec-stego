@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Local test and lint output
+.artifacts/
+sloplint.log
+
+# Local Hallmark salt; the design log is kept
+.hallmark/salt
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,27 @@
+[
+ {
+  "mode": "build",
+  "scope": "app",
+  "shape": "Workbench",
+  "theme": "Cobalt (deal 1/3, seed local-web-app-cli-15b6·28cc42b0·2026-10-23·r0)",
+  "axes": "light / grotesk-sans / cool",
+  "hero": "Page head: headline, one-sentence lead, format labels, sample link; the workbench form beside the graphite carrier panel",
+  "nav": "Top bar: wordmark and OSC tag, local-only status, How it works, CLI",
+  "footer": "Mast: wordmark, compatibility and privacy notes, Format notes, CLI",
+  "imagery": "No photographs; the product UI is the image: carrier panel, hidden-byte field, cipher trace",
+  "photos": [],
+  "entry": "Zero Width, local Oversec zero-width workbench and CLI",
+  "fingerprint": "cobalt-workbench/carrier-byte-field/28cc42b0",
+  "sections": [
+   "Page head",
+   "Workbench: hide and reveal form with carrier panel",
+   "Cipher trace",
+   "Footer"
+  ],
+  "signature": "Carrier panel with a real hidden-byte field and Poly1305 repair trace",
+  "waived": [],
+  "sweep": "sloplint 0 FAIL / 0 REFLEX / 0 WARN; Playwright browser checks passed; no external requests",
+  "prompt": "Build a CLI or a simple web app for Oversec zero-width steganography that decrypts the supplied tweet with password Rg111; use @hallmark.",
+  "date": "2026-10-23"
+ }
+]

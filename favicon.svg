@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Zero Width">
+  <path d="M0 0h24l8 8v24H8L0 24Z" fill="#1f4fd8"/>
+  <g shape-rendering="crispEdges">
+    <rect x="8" y="12" width="4" height="8" fill="#f8fbff"/>
+    <rect x="13" y="12" width="4" height="8" fill="#f8fbff"/>
+    <rect x="18" y="12" width="4" height="8" fill="#f8fbff"/>
+    <rect x="23" y="12" width="4" height="8" fill="#a8c2ff"/>
+  </g>
+</svg>
