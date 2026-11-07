@@ -2,13 +2,21 @@
 
 The standard ``bcrypt`` package cannot reproduce SpongyCastle's raw 24-byte
 hash, so this module ports the exact BCrypt variant used by Oversec. A small
-C helper (``bcrypt_sc.dll`` / ``.so`` / ``.dylib``) is used when present; a
+C helper (``bcrypt_sc.dll`` on Windows, ``bcrypt_sc.so`` /
+``libbcrypt_sc.so`` on Linux, ``.dylib`` on macOS) is used when present; a
 pure-Python fallback is included for portability and tests.
+
+References:
+* Oversec ``KeyUtil.kt`` (password, key-id, and message-key derivation):
+  https://github.com/oversecio/oversec_crypto/blob/master/crypto/src/main/java/io/oversec/one/crypto/symbase/KeyUtil.kt
+* SpongyCastle ``BCrypt.java`` (raw bcrypt variant, core-1.58.0.0):
+  https://github.com/rtyley/spongycastle/blob/spongy-master/core/src/main/java/org/spongycastle/crypto/generators/BCrypt.java
 """
 from __future__ import annotations
 
 import ctypes
 import hashlib
+import sys
 import threading
 from pathlib import Path
 from typing import Optional
@@ -25,23 +33,37 @@ _NATIVE = None
 _NATIVE_ERROR: Optional[str] = None
 _NATIVE_LOCK = threading.Lock()
 
-for _name in ("bcrypt_sc.dll", "bcrypt_sc.so", "bcrypt_sc.dylib"):
+# Prefer the native library for the current platform. Windows uses the .dll,
+# macOS uses .dylib, and Linux/BSD use .so. Include both the plain and the
+# "lib"-prefixed names because a manual build usually produces `libbcrypt_sc.so`.
+if sys.platform == "win32":
+    _NATIVE_NAMES = ("bcrypt_sc.dll", "libbcrypt_sc.dll")
+elif sys.platform == "darwin":
+    _NATIVE_NAMES = ("bcrypt_sc.dylib", "libbcrypt_sc.dylib")
+else:
+    _NATIVE_NAMES = ("bcrypt_sc.so", "libbcrypt_sc.so")
+
+for _name in _NATIVE_NAMES:
     _path = _HERE / _name
-    if _path.exists():
-        try:
-            _lib = ctypes.CDLL(str(_path))
-            _lib.bcrypt_raw.argtypes = [
-                ctypes.c_char_p,
-                ctypes.c_size_t,
-                ctypes.c_char_p,
-                ctypes.c_int,
-                ctypes.POINTER(ctypes.c_ubyte),
-            ]
-            _lib.bcrypt_raw.restype = ctypes.c_int
-            _NATIVE = _lib
-        except OSError as exc:  # pragma: no cover - platform dependent
-            _NATIVE_ERROR = str(exc)
+    if not _path.exists():
+        continue
+    try:
+        _lib = ctypes.CDLL(str(_path))
+        _lib.bcrypt_raw.argtypes = [
+            ctypes.c_char_p,
+            ctypes.c_size_t,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.POINTER(ctypes.c_ubyte),
+        ]
+        _lib.bcrypt_raw.restype = ctypes.c_int
+        _NATIVE = _lib
+        _NATIVE_ERROR = None
         break
+    except (OSError, AttributeError) as exc:  # pragma: no cover - platform dependent
+        # Keep trying the remaining names (for example, a checked-in Windows
+        # DLL is present on Linux and must not mask libbcrypt_sc.so).
+        _NATIVE_ERROR = f"{_name}: {exc}"
 
 
 def native_available() -> bool:

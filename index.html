@@ -1,1081 +1,684 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Zero Width: Oversec steganography workbench</title>
-        <meta
-            name="description"
-            content="Hide and reveal text inside invisible zero-width characters. A local, compatible reimplementation of Oversec’s zwidthbmp and SIMPLESYM formats."
-        />
-        <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-        <link rel="stylesheet" href="./fonts.css" />
-        <link rel="stylesheet" href="./tokens.css" />
-        <link rel="stylesheet" href="./base.css" />
-        <link rel="stylesheet" href="./styles.css" />
-        <script src="./app.js" defer></script>
-    </head>
-    <body>
-        <a class="skip-link" href="#main">Skip to content</a>
 
-        <header class="topbar">
-            <div class="app-container topbar-inner">
-                <a class="wordmark" href="/" aria-label="Zero Width home">
-                    <span class="wordmark-text">Zero Width</span>
-                    <span class="wordmark-tag" aria-hidden="true">OSC</span>
-                </a>
-                <div class="topbar-tools">
-                    <span class="local-status">
-                        <span class="local-mark" aria-hidden="true"></span>
-                        Local only
-                    </span>
-                    <button
-                        class="text-button"
-                        type="button"
-                        data-dialog-open="about-dialog"
-                    >
-                        How it works
-                    </button>
-                    <button
-                        class="text-button"
-                        type="button"
-                        data-dialog-open="cli-dialog"
-                    >
-                        CLI
-                    </button>
-                </div>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zero Width: Oversec steganography workbench</title>
+    <meta name="description"
+        content="Hide and reveal text inside invisible zero-width characters. A local, compatible reimplementation of Oversec’s zwidthbmp and SIMPLESYM formats." />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./fonts.css" />
+    <link rel="stylesheet" href="./tokens.css" />
+    <link rel="stylesheet" href="./base.css" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+</head>
+
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="topbar">
+        <div class="app-container topbar-inner">
+            <a class="wordmark" href="/" aria-label="Zero Width home">
+                <span class="wordmark-text">Zero Width</span>
+                <span class="wordmark-tag" aria-hidden="true">OSC</span>
+            </a>
+            <div class="topbar-tools">
+                <span class="local-status">
+                    <span class="local-mark" aria-hidden="true"></span>
+                    Local only
+                </span>
+                <button class="text-button" type="button" data-dialog-open="about-dialog">
+                    How it works
+                </button>
+                <button class="text-button" type="button" data-dialog-open="cli-dialog">
+                    CLI
+                </button>
             </div>
-        </header>
+        </div>
+    </header>
 
-        <main id="main" class="app-container">
-            <div class="page-head">
-                <div class="page-head-copy">
-                    <h1>Hide a message in plain sight.</h1>
-                    <p class="lead">
-                        Wrap text in invisible zero-width characters that
-                        survive a copy and paste. The crypto runs on this
-                        machine.
+    <main id="main" class="app-container">
+        <div class="page-head">
+            <div class="page-head-copy">
+                <h1>Hide a message in plain sight.</h1>
+                <p class="lead">
+                    Wrap text in invisible zero-width characters that
+                    survive a copy and paste.
+                </p>
+            </div>
+            <div class="page-head-meta">
+                <ul class="format-list" aria-label="Formats">
+                    <li><code>zwidthbmp</code></li>
+                    <li><code>SIMPLESYM</code></li>
+                </ul>
+                <button class="sample-link" id="try-sample" type="button">
+                    Try the sample
+                    <svg class="icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                        stroke-width="1.5" aria-hidden="true">
+                        <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <p class="notice" id="kdf-notice" hidden>
+            Native bcrypt helper not found. Key derivation will use the
+            slower Python fallback.
+        </p>
+        <p class="notice" id="file-notice" hidden>
+            This page needs its local server. Run
+            <code>python server.py --open</code> in the project folder,
+            then open
+            <a href="http://127.0.0.1:8765/">http://127.0.0.1:8765/</a>.
+        </p>
+        <noscript>
+            <p class="notice">
+                This workbench needs JavaScript for the local crypto calls.
+                The CLI works without it:
+                <code>python oversec_stego.py --help</code>.
+            </p>
+        </noscript>
+
+        <section class="workbench" aria-label="Steganography workbench">
+            <div class="workbench-form cut">
+                <div class="mode-row">
+                    <div class="mode-tabs" role="tablist" aria-label="Operation">
+                        <button class="mode-tab" id="hide-tab" type="button" role="tab" aria-selected="true"
+                            aria-controls="hide-panel" tabindex="0" data-mode="hide">
+                            Hide
+                        </button>
+                        <button class="mode-tab" id="reveal-tab" type="button" role="tab" aria-selected="false"
+                            aria-controls="reveal-panel" tabindex="-1" data-mode="reveal">
+                            Reveal
+                        </button>
+                    </div>
+                    <p class="mode-note" id="mode-note">
+                        Encrypt a message, then copy the carrier.
                     </p>
                 </div>
-                <div class="page-head-meta">
-                    <ul class="format-list" aria-label="Formats">
-                        <li><code>zwidthbmp</code></li>
-                        <li><code>SIMPLESYM</code></li>
-                    </ul>
-                    <button class="sample-link" id="try-sample" type="button">
-                        Try the sample
-                        <svg
-                            class="icon"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.5"
-                            aria-hidden="true"
-                        >
-                            <path d="M3 8h10M9 4l4 4-4 4" />
-                        </svg>
-                    </button>
+
+                <div id="hide-panel" role="tabpanel" aria-labelledby="hide-tab">
+                    <form id="hide-form" novalidate>
+                        <div class="field">
+                            <div class="field-label-row">
+                                <label class="field-label" for="hide-message">Message</label>
+                                <span class="field-count" id="hide-message-count">0 / 5,000</span>
+                            </div>
+                            <textarea class="field-input field-textarea" id="hide-message" name="message" rows="4"
+                                maxlength="5000" placeholder="Type the message you want to hide."
+                                aria-describedby="hide-message-help" required></textarea>
+                            <!--<p class="field-help" id="hide-message-help">
+                                The message is encrypted before it becomes
+                                invisible.
+                            </p>-->
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="hide-password">Password</label>
+                            <div class="password-wrap">
+                                <input class="field-input password-input" id="hide-password" name="password"
+                                    type="password" maxlength="512" autocomplete="current-password"
+                                    aria-describedby="hide-password-help" required />
+                                <button class="password-toggle" id="hide-password-toggle" type="button"
+                                    aria-label="Show password" aria-pressed="false">
+                                    <svg class="icon icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                                        <circle cx="12" cy="12" r="2.5" />
+                                    </svg>
+                                    <svg class="icon icon-eye-off" width="18" height="18" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                        <path
+                                            d="M4 4l16 16M9.9 5.4A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1M6.1 6.7A17.4 17.4 0 0 0 2.5 12s3.5 7 9.5 7a10.3 10.3 0 0 0 4.2-.9" />
+                                        <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                        </div>
+
+                        <div class="field">
+                            <div class="field-label-row">
+                                <label class="field-label" for="hide-carrier">Visible carrier</label>
+                                <span class="field-count" id="hide-carrier-count">0 / 5,000</span>
+                            </div>
+                            <textarea class="field-input field-textarea" id="hide-carrier" name="carrier" rows="2"
+                                maxlength="5000" aria-describedby="hide-carrier-help">
+                                This post is exactly what it looks like.</textarea>
+                            <!--<p class="field-help" id="hide-carrier-help">
+                                The text people see, carrying the invisible
+                                payload.
+                            </p>-->
+                        </div>
+
+                        <details class="advanced">
+                            <summary class="advanced-summary">
+                                <svg class="icon advanced-chevron" width="14" height="14" viewBox="0 0 16 16"
+                                    fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                    <path d="M6 3l5 5-5 5" />
+                                </svg>
+                                Advanced
+                            </summary>
+                            <div class="advanced-body">
+                                <div>
+                                    <label class="check-label" for="hide-spread">
+                                        <input class="check-input" id="hide-spread" name="spread" type="checkbox" />
+                                        <span>
+                                            Break the invisible run every 30
+                                            characters
+                                            <span class="check-help" id="hide-spread-help">Inserts a filler space
+                                                after every 30 hidden
+                                                characters.</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="padding-field">
+                                    <label class="field-label" for="hide-padding">Padding bytes</label>
+                                    <input class="field-input padding-input" id="hide-padding" name="padding"
+                                        type="number" min="0" max="255" step="1" value="6"
+                                        aria-describedby="hide-padding-help" />
+                                    <p class="field-help" id="hide-padding-help">
+                                        Random bytes inside the encrypted
+                                        payload.
+                                    </p>
+                                </div>
+                            </div>
+                        </details>
+
+                        <p class="form-error" id="hide-error" role="alert"></p>
+
+                        <div class="form-actions">
+                            <button class="key key--primary" id="hide-submit" type="submit">
+                                <span class="key-spinner" aria-hidden="true"></span>
+                                <span class="key-label">Hide message</span>
+                            </button>
+                            <button class="text-action" id="hide-clear" type="button">
+                                Clear
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="reveal-panel" role="tabpanel" aria-labelledby="reveal-tab" hidden>
+                    <form id="reveal-form" novalidate>
+                        <div class="field">
+                            <div class="field-label-row">
+                                <label class="field-label" for="reveal-text">Text with a hidden payload</label>
+                                <span class="field-count" id="reveal-text-count">0 characters</span>
+                            </div>
+                            <textarea class="field-input field-textarea reveal-textarea" id="reveal-text" name="text"
+                                rows="6" maxlength="200000" placeholder="Paste text that contains invisible characters."
+                                aria-describedby="reveal-text-help" required></textarea>
+                            <!--<p class="field-help" id="reveal-text-help">
+                                The decoder finds the OSC magic anywhere in
+                                the pasted text.
+                            </p>-->
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="reveal-password">Password</label>
+                            <div class="password-wrap">
+                                <input class="field-input password-input" id="reveal-password" name="password"
+                                    type="password" maxlength="512" autocomplete="current-password"
+                                    aria-describedby="reveal-password-help" required />
+                                <button class="password-toggle" id="reveal-password-toggle" type="button"
+                                    aria-label="Show password" aria-pressed="false">
+                                    <svg class="icon icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                                        <circle cx="12" cy="12" r="2.5" />
+                                    </svg>
+                                    <svg class="icon icon-eye-off" width="18" height="18" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                        <path
+                                            d="M4 4l16 16M9.9 5.4A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1M6.1 6.7A17.4 17.4 0 0 0 2.5 12s3.5 7 9.5 7a10.3 10.3 0 0 0 4.2-.9" />
+                                        <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <!--<p class="field-help" id="reveal-password-help">
+                                Never stored. Used only for this request.
+                            </p>-->
+                        </div>
+
+                        <p class="sample-note" id="sample-note" hidden></p>
+                        <p class="form-error" id="reveal-error" role="alert"></p>
+
+                        <div class="form-actions">
+                            <button class="key key--primary" id="reveal-submit" type="submit">
+                                <span class="key-spinner" aria-hidden="true"></span>
+                                <span class="key-label">Reveal message</span>
+                            </button>
+                            <button class="text-action" id="sample-btn" type="button">
+                                Load the sample
+                                <svg class="icon" width="14" height="14" viewBox="0 0 16 16" fill="none"
+                                    stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                    <path d="M3 8h10M9 4l4 4-4 4" />
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
-            <p class="notice" id="kdf-notice" hidden>
-                Native bcrypt helper not found. Key derivation will use the
-                slower Python fallback.
-            </p>
-            <p class="notice" id="file-notice" hidden>
-                This page needs its local server. Run
-                <code>python server.py --open</code> in the project folder,
-                then open
-                <a href="http://127.0.0.1:8765/">http://127.0.0.1:8765/</a>.
-            </p>
-            <noscript>
-                <p class="notice">
-                    This workbench needs JavaScript for the local crypto calls.
-                    The CLI works without it:
-                    <code>python oversec_stego.py --help</code>.
-                </p>
-            </noscript>
+            <aside class="carrier-panel graphite" id="carrier-panel" aria-labelledby="carrier-title">
+                <div class="carrier-head">
+                    <div>
+                        <h2 id="carrier-title" tabindex="-1">Carrier</h2>
+                        <p class="carrier-subtitle" id="carrier-subtitle">
+                            The visible text, with the message inside.
+                        </p>
+                    </div>
+                    <button class="copy-key" id="copy-btn" type="button" disabled aria-label="Copy carrier">
+                        <svg class="icon icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <rect x="8" y="8" width="12" height="12" rx="1.5" />
+                            <path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" />
+                        </svg>
+                        <svg class="icon icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path d="M5 12.5l4.5 4.5L19 7.5" />
+                        </svg>
+                        <span id="copy-label">Copy</span>
+                    </button>
+                </div>
 
-            <section class="workbench" aria-label="Steganography workbench">
-                <div class="workbench-form cut">
-                    <div class="mode-row">
-                        <div
-                            class="mode-tabs"
-                            role="tablist"
-                            aria-label="Operation"
-                        >
-                            <button
-                                class="mode-tab"
-                                id="hide-tab"
-                                type="button"
-                                role="tab"
-                                aria-selected="true"
-                                aria-controls="hide-panel"
-                                tabindex="0"
-                                data-mode="hide"
-                            >
-                                Hide
-                            </button>
-                            <button
-                                class="mode-tab"
-                                id="reveal-tab"
-                                type="button"
-                                role="tab"
-                                aria-selected="false"
-                                aria-controls="reveal-panel"
-                                tabindex="-1"
-                                data-mode="reveal"
-                            >
-                                Reveal
-                            </button>
-                        </div>
-                        <p class="mode-note" id="mode-note">
-                            Encrypt a message, then copy the carrier.
+                <div class="carrier-body" id="carrier-body">
+                    <div class="carrier-state is-active" data-state="empty">
+                        <span class="empty-mark" aria-hidden="true">OSC</span>
+                        <p class="state-title" id="empty-title">
+                            No carrier yet
+                        </p>
+                        <p class="state-body" id="empty-body">
+                            Hide a message and the visible carrier appears
+                            here.
+                        </p>
+                        <p class="state-meta" id="empty-meta">
+                            0 hidden bytes
                         </p>
                     </div>
 
-                    <div
-                        id="hide-panel"
-                        role="tabpanel"
-                        aria-labelledby="hide-tab"
-                    >
-                        <form id="hide-form" novalidate>
-                            <div class="field">
-                                <div class="field-label-row">
-                                    <label
-                                        class="field-label"
-                                        for="hide-message"
-                                        >Message</label
-                                    >
-                                    <span
-                                        class="field-count"
-                                        id="hide-message-count"
-                                        >0 / 5,000</span
-                                    >
-                                </div>
-                                <textarea
-                                    class="field-input field-textarea"
-                                    id="hide-message"
-                                    name="message"
-                                    rows="4"
-                                    maxlength="5000"
-                                    placeholder="Type the message you want to hide."
-                                    aria-describedby="hide-message-help"
-                                    required
-                                ></textarea>
-                                <p class="field-help" id="hide-message-help">
-                                    The message is encrypted before it becomes
-                                    invisible.
-                                </p>
-                            </div>
-
-                            <div class="field">
-                                <label class="field-label" for="hide-password"
-                                    >Password</label
-                                >
-                                <div class="password-wrap">
-                                    <input
-                                        class="field-input password-input"
-                                        id="hide-password"
-                                        name="password"
-                                        type="password"
-                                        maxlength="512"
-                                        autocomplete="current-password"
-                                        aria-describedby="hide-password-help"
-                                        required
-                                    />
-                                    <button
-                                        class="password-toggle"
-                                        id="hide-password-toggle"
-                                        type="button"
-                                        aria-label="Show password"
-                                        aria-pressed="false"
-                                    >
-                                        <svg
-                                            class="icon icon-eye"
-                                            width="18"
-                                            height="18"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.5"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"
-                                            />
-                                            <circle cx="12" cy="12" r="2.5" />
-                                        </svg>
-                                        <svg
-                                            class="icon icon-eye-off"
-                                            width="18"
-                                            height="18"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.5"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                d="M4 4l16 16M9.9 5.4A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1M6.1 6.7A17.4 17.4 0 0 0 2.5 12s3.5 7 9.5 7a10.3 10.3 0 0 0 4.2-.9"
-                                            />
-                                            <path
-                                                d="M9.9 9.9a3 3 0 0 0 4.2 4.2"
-                                            />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <p class="field-help" id="hide-password-help">
-                                    Never stored. Used only for this request.
-                                </p>
-                            </div>
-
-                            <div class="field">
-                                <div class="field-label-row">
-                                    <label
-                                        class="field-label"
-                                        for="hide-carrier"
-                                        >Visible carrier</label
-                                    >
-                                    <span
-                                        class="field-count"
-                                        id="hide-carrier-count"
-                                        >0 / 5,000</span
-                                    >
-                                </div>
-                                <textarea
-                                    class="field-input field-textarea"
-                                    id="hide-carrier"
-                                    name="carrier"
-                                    rows="2"
-                                    maxlength="5000"
-                                    aria-describedby="hide-carrier-help"
-                                >
-This post is exactly what it looks like.</textarea>
-                                <p class="field-help" id="hide-carrier-help">
-                                    The text people see, carrying the invisible
-                                    payload.
-                                </p>
-                            </div>
-
-                            <details class="advanced">
-                                <summary class="advanced-summary">
-                                    <svg
-                                        class="icon advanced-chevron"
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 16 16"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.5"
-                                        aria-hidden="true"
-                                    >
-                                        <path d="M6 3l5 5-5 5" />
-                                    </svg>
-                                    Advanced
-                                </summary>
-                                <div class="advanced-body">
-                                    <div>
-                                        <label
-                                            class="check-label"
-                                            for="hide-spread"
-                                        >
-                                            <input
-                                                class="check-input"
-                                                id="hide-spread"
-                                                name="spread"
-                                                type="checkbox"
-                                            />
-                                            <span>
-                                                Break the invisible run every 30
-                                                characters
-                                                <span
-                                                    class="check-help"
-                                                    id="hide-spread-help"
-                                                    >Inserts a filler space
-                                                    after every 30 hidden
-                                                    characters.</span
-                                                >
-                                            </span>
-                                        </label>
-                                    </div>
-                                    <div class="padding-field">
-                                        <label
-                                            class="field-label"
-                                            for="hide-padding"
-                                            >Padding bytes</label
-                                        >
-                                        <input
-                                            class="field-input padding-input"
-                                            id="hide-padding"
-                                            name="padding"
-                                            type="number"
-                                            min="0"
-                                            max="255"
-                                            step="1"
-                                            value="6"
-                                            aria-describedby="hide-padding-help"
-                                        />
-                                        <p
-                                            class="field-help"
-                                            id="hide-padding-help"
-                                        >
-                                            Random bytes inside the encrypted
-                                            payload.
-                                        </p>
-                                    </div>
-                                </div>
-                            </details>
-
-                            <p
-                                class="form-error"
-                                id="hide-error"
-                                role="alert"
-                            ></p>
-
-                            <div class="form-actions">
-                                <button
-                                    class="key key--primary"
-                                    id="hide-submit"
-                                    type="submit"
-                                >
-                                    <span
-                                        class="key-spinner"
-                                        aria-hidden="true"
-                                    ></span>
-                                    <span class="key-label">Hide message</span>
-                                </button>
-                                <button
-                                    class="text-action"
-                                    id="hide-clear"
-                                    type="button"
-                                >
-                                    Clear
-                                </button>
-                            </div>
-                        </form>
+                    <div class="carrier-state" data-state="loading" aria-busy="true">
+                        <span class="spinner" aria-hidden="true"></span>
+                        <p class="state-title" id="loading-title">
+                            Deriving the key
+                        </p>
+                        <p class="state-body" id="loading-body">
+                            bcrypt runs locally. Nothing leaves this
+                            machine.
+                        </p>
                     </div>
 
-                    <div
-                        id="reveal-panel"
-                        role="tabpanel"
-                        aria-labelledby="reveal-tab"
-                        hidden
-                    >
-                        <form id="reveal-form" novalidate>
-                            <div class="field">
-                                <div class="field-label-row">
-                                    <label class="field-label" for="reveal-text"
-                                        >Text with a hidden payload</label
-                                    >
-                                    <span
-                                        class="field-count"
-                                        id="reveal-text-count"
-                                        >0 characters</span
-                                    >
+                    <div class="carrier-state" data-state="error">
+                        <svg class="state-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path d="M12 3.5 21 20H3L12 3.5Z" />
+                            <path d="M12 9v5M12 17.2v.1" />
+                        </svg>
+                        <p class="state-title" id="carrier-error-title">
+                            Could not reveal
+                        </p>
+                        <p class="state-body" id="carrier-error-message">
+                            The local operation did not finish.
+                        </p>
+                        <p class="state-hint" id="carrier-error-hint">
+                            Nothing was sent anywhere. Check the field and
+                            try again.
+                        </p>
+                    </div>
+
+                    <div class="carrier-state" data-state="success">
+                        <div class="success-hide" id="success-hide">
+                            <p class="carrier-text" id="carrier-text"></p>
+                            <div class="hidden-ribbon" id="hidden-ribbon">
+                                <span class="ribbon-line" aria-hidden="true"></span>
+                                <span class="ribbon-label">invisible payload</span>
+                            </div>
+                            <div class="hidden-field-wrap" id="hidden-field-wrap" hidden>
+                                <div class="field-head">
+                                    <span class="field-title">Hidden bytes</span>
+                                    <span class="field-note">Hover a cell for its hex.</span>
                                 </div>
-                                <textarea
-                                    class="field-input field-textarea reveal-textarea"
-                                    id="reveal-text"
-                                    name="text"
-                                    rows="6"
-                                    maxlength="200000"
-                                    placeholder="Paste text that contains invisible characters."
-                                    aria-describedby="reveal-text-help"
-                                    required
-                                ></textarea>
-                                <p class="field-help" id="reveal-text-help">
-                                    The decoder finds the OSC magic anywhere in
-                                    the pasted text.
-                                </p>
-                            </div>
-
-                            <div class="field">
-                                <label class="field-label" for="reveal-password"
-                                    >Password</label
-                                >
-                                <div class="password-wrap">
-                                    <input
-                                        class="field-input password-input"
-                                        id="reveal-password"
-                                        name="password"
-                                        type="password"
-                                        maxlength="512"
-                                        autocomplete="current-password"
-                                        aria-describedby="reveal-password-help"
-                                        required
-                                    />
-                                    <button
-                                        class="password-toggle"
-                                        id="reveal-password-toggle"
-                                        type="button"
-                                        aria-label="Show password"
-                                        aria-pressed="false"
-                                    >
-                                        <svg
-                                            class="icon icon-eye"
-                                            width="18"
-                                            height="18"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.5"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"
-                                            />
-                                            <circle cx="12" cy="12" r="2.5" />
-                                        </svg>
-                                        <svg
-                                            class="icon icon-eye-off"
-                                            width="18"
-                                            height="18"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.5"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                d="M4 4l16 16M9.9 5.4A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1M6.1 6.7A17.4 17.4 0 0 0 2.5 12s3.5 7 9.5 7a10.3 10.3 0 0 0 4.2-.9"
-                                            />
-                                            <path
-                                                d="M9.9 9.9a3 3 0 0 0 4.2 4.2"
-                                            />
-                                        </svg>
-                                    </button>
+                                <div class="byte-field" id="byte-field" role="img"></div>
+                                <div class="field-legend" aria-hidden="true">
+                                    <span class="legend-item"><span class="legend-cell legend-cell--magic"></span>
+                                        OSC magic</span>
+                                    <span class="legend-item"><span
+                                            class="legend-ramp"><i></i><i></i><i></i><i></i></span>
+                                        byte value</span>
                                 </div>
-                                <p class="field-help" id="reveal-password-help">
-                                    Never stored. Used only for this request.
-                                </p>
                             </div>
-
-                            <p class="sample-note" id="sample-note" hidden></p>
-                            <p
-                                class="form-error"
-                                id="reveal-error"
-                                role="alert"
-                            ></p>
-
-                            <div class="form-actions">
-                                <button
-                                    class="key key--primary"
-                                    id="reveal-submit"
-                                    type="submit"
-                                >
-                                    <span
-                                        class="key-spinner"
-                                        aria-hidden="true"
-                                    ></span>
-                                    <span class="key-label"
-                                        >Reveal message</span
-                                    >
-                                </button>
-                                <button
-                                    class="text-action"
-                                    id="sample-btn"
-                                    type="button"
-                                >
-                                    Load the sample
-                                    <svg
-                                        class="icon"
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 16 16"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.5"
-                                        aria-hidden="true"
-                                    >
-                                        <path d="M3 8h10M9 4l4 4-4 4" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </form>
+                        </div>
+                        <div class="success-reveal" id="success-reveal" hidden>
+                            <p class="revealed-message" id="revealed-message"></p>
+                            <div class="revealed-meta" id="revealed-meta"></div>
+                            <p class="revealed-note" id="revealed-note" hidden></p>
+                        </div>
                     </div>
                 </div>
 
-                <aside
-                    class="carrier-panel graphite"
-                    id="carrier-panel"
-                    aria-labelledby="carrier-title"
-                >
-                    <div class="carrier-head">
+                <div class="carrier-foot" id="carrier-foot">
+                    <button class="switch" id="reveal-toggle" type="button" role="switch" aria-checked="false" disabled>
+                        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                        <span class="switch-label">Show hidden characters</span>
+                    </button>
+                    <span class="carrier-stat" id="carrier-stat">0 hidden bytes</span>
+                </div>
+            </aside>
+        </section>
+
+        <section class="trace" aria-labelledby="trace-title">
+            <div class="trace-head">
+                <div>
+                    <h2 id="trace-title">Cipher trace</h2>
+                    <p>What the last operation actually did.</p>
+                </div>
+                <span class="trace-status" id="trace-status">Waiting</span>
+            </div>
+
+            <div class="trace-grid" id="trace-grid">
+                <article class="trace-step">
+                    <div class="trace-step-head">
+                        <h3>Password key</h3>
+                    </div>
+                    <dl class="trace-values">
                         <div>
-                            <h2 id="carrier-title" tabindex="-1">Carrier</h2>
-                            <p class="carrier-subtitle" id="carrier-subtitle">
-                                The visible text, with the message inside.
-                            </p>
+                            <dt>key id</dt>
+                            <dd><code>—</code></dd>
                         </div>
-                        <button
-                            class="copy-key"
-                            id="copy-btn"
-                            type="button"
-                            disabled
-                            aria-label="Copy carrier"
-                        >
-                            <svg
-                                class="icon icon-copy"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                                aria-hidden="true"
-                            >
-                                <rect
-                                    x="8"
-                                    y="8"
-                                    width="12"
-                                    height="12"
-                                    rx="1.5"
-                                />
-                                <path
-                                    d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"
-                                />
-                            </svg>
-                            <svg
-                                class="icon icon-check"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                aria-hidden="true"
-                            >
-                                <path d="M5 12.5l4.5 4.5L19 7.5" />
-                            </svg>
-                            <span id="copy-label">Copy</span>
-                        </button>
+                    </dl>
+                    <p class="trace-note">Waiting for an operation.</p>
+                </article>
+                <article class="trace-step">
+                    <div class="trace-step-head">
+                        <h3>Session key</h3>
                     </div>
-
-                    <div class="carrier-body" id="carrier-body">
-                        <div class="carrier-state is-active" data-state="empty">
-                            <span class="empty-mark" aria-hidden="true"
-                                >OSC</span
-                            >
-                            <p class="state-title" id="empty-title">
-                                No carrier yet
-                            </p>
-                            <p class="state-body" id="empty-body">
-                                Hide a message and the visible carrier appears
-                                here.
-                            </p>
-                            <p class="state-meta" id="empty-meta">
-                                0 hidden bytes
-                            </p>
+                    <dl class="trace-values">
+                        <div>
+                            <dt>keyhash</dt>
+                            <dd><code>—</code></dd>
                         </div>
-
-                        <div
-                            class="carrier-state"
-                            data-state="loading"
-                            aria-busy="true"
-                        >
-                            <span class="spinner" aria-hidden="true"></span>
-                            <p class="state-title" id="loading-title">
-                                Deriving the key
-                            </p>
-                            <p class="state-body" id="loading-body">
-                                bcrypt runs locally. Nothing leaves this
-                                machine.
-                            </p>
-                        </div>
-
-                        <div class="carrier-state" data-state="error">
-                            <svg
-                                class="state-icon"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                                aria-hidden="true"
-                            >
-                                <path d="M12 3.5 21 20H3L12 3.5Z" />
-                                <path d="M12 9v5M12 17.2v.1" />
-                            </svg>
-                            <p class="state-title" id="carrier-error-title">
-                                Could not reveal
-                            </p>
-                            <p class="state-body" id="carrier-error-message">
-                                The local operation did not finish.
-                            </p>
-                            <p class="state-hint" id="carrier-error-hint">
-                                Nothing was sent anywhere. Check the field and
-                                try again.
-                            </p>
-                        </div>
-
-                        <div class="carrier-state" data-state="success">
-                            <div class="success-hide" id="success-hide">
-                                <p class="carrier-text" id="carrier-text"></p>
-                                <div class="hidden-ribbon" id="hidden-ribbon">
-                                    <span
-                                        class="ribbon-line"
-                                        aria-hidden="true"
-                                    ></span>
-                                    <span class="ribbon-label"
-                                        >invisible payload</span
-                                    >
-                                </div>
-                                <div
-                                    class="hidden-field-wrap"
-                                    id="hidden-field-wrap"
-                                    hidden
-                                >
-                                    <div class="field-head">
-                                        <span class="field-title"
-                                            >Hidden bytes</span
-                                        >
-                                        <span class="field-note"
-                                            >Hover a cell for its hex.</span
-                                        >
-                                    </div>
-                                    <div
-                                        class="byte-field"
-                                        id="byte-field"
-                                        role="img"
-                                    ></div>
-                                    <div
-                                        class="field-legend"
-                                        aria-hidden="true"
-                                    >
-                                        <span class="legend-item"
-                                            ><span
-                                                class="legend-cell legend-cell--magic"
-                                            ></span>
-                                            OSC magic</span
-                                        >
-                                        <span class="legend-item"
-                                            ><span class="legend-ramp"
-                                                ><i></i><i></i><i></i><i></i
-                                            ></span>
-                                            byte value</span
-                                        >
-                                    </div>
-                                </div>
-                            </div>
-                            <div
-                                class="success-reveal"
-                                id="success-reveal"
-                                hidden
-                            >
-                                <p
-                                    class="revealed-message"
-                                    id="revealed-message"
-                                ></p>
-                                <div
-                                    class="revealed-meta"
-                                    id="revealed-meta"
-                                ></div>
-                                <p
-                                    class="revealed-note"
-                                    id="revealed-note"
-                                    hidden
-                                ></p>
-                            </div>
-                        </div>
+                    </dl>
+                    <p class="trace-note">Waiting for an operation.</p>
+                </article>
+                <article class="trace-step">
+                    <div class="trace-step-head">
+                        <h3>ChaCha20 + Poly1305</h3>
                     </div>
-
-                    <div class="carrier-foot" id="carrier-foot">
-                        <button
-                            class="switch"
-                            id="reveal-toggle"
-                            type="button"
-                            role="switch"
-                            aria-checked="false"
-                            disabled
-                        >
-                            <span class="switch-track" aria-hidden="true"
-                                ><span class="switch-thumb"></span
-                            ></span>
-                            <span class="switch-label"
-                                >Show hidden characters</span
-                            >
-                        </button>
-                        <span class="carrier-stat" id="carrier-stat"
-                            >0 hidden bytes</span
-                        >
-                    </div>
-                </aside>
-            </section>
-
-            <section class="trace" aria-labelledby="trace-title">
-                <div class="trace-head">
-                    <div>
-                        <h2 id="trace-title">Cipher trace</h2>
-                        <p>What the last operation actually did.</p>
-                    </div>
-                    <span class="trace-status" id="trace-status">Waiting</span>
-                </div>
-
-                <div class="trace-grid" id="trace-grid">
-                    <article class="trace-step">
-                        <div class="trace-step-head"><h3>Password key</h3></div>
-                        <dl class="trace-values">
-                            <div>
-                                <dt>key id</dt>
-                                <dd><code>—</code></dd>
-                            </div>
-                        </dl>
-                        <p class="trace-note">Waiting for an operation.</p>
-                    </article>
-                    <article class="trace-step">
-                        <div class="trace-step-head"><h3>Session key</h3></div>
-                        <dl class="trace-values">
-                            <div>
-                                <dt>keyhash</dt>
-                                <dd><code>—</code></dd>
-                            </div>
-                        </dl>
-                        <p class="trace-note">Waiting for an operation.</p>
-                    </article>
-                    <article class="trace-step">
-                        <div class="trace-step-head">
-                            <h3>ChaCha20 + Poly1305</h3>
+                    <dl class="trace-values">
+                        <div>
+                            <dt>ciphertext</dt>
+                            <dd><code>—</code></dd>
                         </div>
-                        <dl class="trace-values">
-                            <div>
-                                <dt>ciphertext</dt>
-                                <dd><code>—</code></dd>
-                            </div>
-                        </dl>
-                        <p class="trace-note">Waiting for an operation.</p>
-                    </article>
-                    <article class="trace-step">
-                        <div class="trace-step-head"><h3>Zero-width</h3></div>
-                        <dl class="trace-values">
-                            <div>
-                                <dt>payload</dt>
-                                <dd><code>—</code></dd>
-                            </div>
-                        </dl>
-                        <p class="trace-note">Waiting for an operation.</p>
-                    </article>
-                </div>
-
-                <div class="cipher-block">
-                    <div class="cipher-block-head">
-                        <span class="cipher-block-title">Ciphertext</span>
-                        <span class="cipher-block-meta" id="cipher-block-meta"
-                            >No ciphertext yet</span
-                        >
+                    </dl>
+                    <p class="trace-note">Waiting for an operation.</p>
+                </article>
+                <article class="trace-step">
+                    <div class="trace-step-head">
+                        <h3>Zero-width</h3>
                     </div>
-                    <code class="cipher-hex cipher-hex--empty" id="cipher-hex"
-                        >Waiting for an operation.</code
-                    >
-                    <p class="cipher-legend" id="cipher-legend" hidden>
-                        The last 16 bytes are the Poly1305 tag.
-                    </p>
-                </div>
-            </section>
-        </main>
-
-        <footer class="site-footer">
-            <div class="app-container footer-inner">
-                <div class="footer-copy">
-                    <p class="footer-brand">Zero Width</p>
-                    <p>
-                        A compatible reimplementation of Oversec’s zwidthbmp and
-                        SIMPLESYM formats. Not affiliated with Oversec.
-                    </p>
-                    <p>
-                        Runs on 127.0.0.1. Messages and passwords never leave
-                        this machine.
-                    </p>
-                </div>
-                <div class="footer-actions">
-                    <button
-                        class="text-button"
-                        type="button"
-                        data-dialog-open="about-dialog"
-                    >
-                        Format notes
-                    </button>
-                    <button
-                        class="text-button"
-                        type="button"
-                        data-dialog-open="cli-dialog"
-                    >
-                        CLI
-                    </button>
-                </div>
+                    <dl class="trace-values">
+                        <div>
+                            <dt>payload</dt>
+                            <dd><code>—</code></dd>
+                        </div>
+                    </dl>
+                    <p class="trace-note">Waiting for an operation.</p>
+                </article>
             </div>
-        </footer>
 
-        <div
-            id="live-status"
-            class="visually-hidden"
-            aria-live="polite"
-            aria-atomic="true"
-        ></div>
-
-        <dialog class="dialog" id="cli-dialog" aria-labelledby="cli-title">
-            <div class="dialog-head">
-                <div>
-                    <h2 id="cli-title">CLI</h2>
-                    <p>The same crypto core, from the terminal.</p>
+            <div class="cipher-block">
+                <div class="cipher-block-head">
+                    <span class="cipher-block-title">Ciphertext</span>
+                    <span class="cipher-block-meta" id="cipher-block-meta">No ciphertext yet</span>
                 </div>
-                <button
-                    class="icon-key"
-                    type="button"
-                    data-dialog-close
-                    aria-label="Close CLI dialog"
-                >
-                    <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                        aria-hidden="true"
-                    >
-                        <path d="M6 6l12 12M18 6 6 18" />
-                    </svg>
+                <code class="cipher-hex cipher-hex--empty" id="cipher-hex">Waiting for an operation.</code>
+                <p class="cipher-legend" id="cipher-legend" hidden>
+                    The last 16 bytes are the Poly1305 tag.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="app-container footer-inner">
+            <div class="footer-copy">
+                <p class="footer-brand">Zero Width</p>
+                <p>
+                    A compatible reimplementation of Oversec’s zwidthbmp and
+                    SIMPLESYM formats. Not affiliated with Oversec.
+                </p>
+                <p>
+                    Runs on 127.0.0.1. Messages and passwords never leave
+                    this machine.
+                </p>
+                <p class="footer-references">
+                    This workbench:
+                    <a href="https://github.com/zoasr/oversec-stego" target="_blank"
+                        rel="noopener noreferrer">zoasr/oversec-stego</a>.
+                    Original source:
+                    <a href="https://github.com/oversecio/oversec" target="_blank"
+                        rel="noopener noreferrer">oversecio/oversec</a>
+                    and
+                    <a href="https://github.com/oversecio/oversec_crypto" target="_blank"
+                        rel="noopener noreferrer">oversecio/oversec_crypto</a>
+                    (GPL-3.0).
+                </p>
+            </div>
+            <div class="footer-actions">
+                <button class="text-button" type="button" data-dialog-open="about-dialog">
+                    Format notes
+                </button>
+                <button class="text-button" type="button" data-dialog-open="cli-dialog">
+                    CLI
                 </button>
             </div>
-            <div class="dialog-body">
-                <p class="dialog-note">
-                    Run these from the project directory. The sample password is
-                    built in.
-                </p>
+        </div>
+    </footer>
 
-                <div class="command">
-                    <div class="command-head">
-                        <span>Hide a message</span>
-                        <button
-                            class="copy-key copy-key--small"
-                            type="button"
-                            data-copy-command
-                        >
-                            <svg
-                                class="icon icon-copy"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                                aria-hidden="true"
-                            >
-                                <rect
-                                    x="8"
-                                    y="8"
-                                    width="12"
-                                    height="12"
-                                    rx="1.5"
-                                />
-                                <path
-                                    d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"
-                                />
-                            </svg>
-                            <svg
-                                class="icon icon-check"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                aria-hidden="true"
-                            >
-                                <path d="M5 12.5l4.5 4.5L19 7.5" />
-                            </svg>
-                            <span class="copy-label">Copy</span>
-                        </button>
-                    </div>
-                    <pre><code>python oversec_stego.py encrypt --password "your password" --message "meet me at midnight" --output hidden.txt</code></pre>
-                </div>
+    <div id="live-status" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
-                <div class="command">
-                    <div class="command-head">
-                        <span>Reveal a message</span>
-                        <button
-                            class="copy-key copy-key--small"
-                            type="button"
-                            data-copy-command
-                        >
-                            <svg
-                                class="icon icon-copy"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                                aria-hidden="true"
-                            >
-                                <rect
-                                    x="8"
-                                    y="8"
-                                    width="12"
-                                    height="12"
-                                    rx="1.5"
-                                />
-                                <path
-                                    d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"
-                                />
-                            </svg>
-                            <svg
-                                class="icon icon-check"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                aria-hidden="true"
-                            >
-                                <path d="M5 12.5l4.5 4.5L19 7.5" />
-                            </svg>
-                            <span class="copy-label">Copy</span>
-                        </button>
-                    </div>
-                    <pre><code>python oversec_stego.py decrypt --password "your password" --text-file hidden.txt</code></pre>
-                </div>
-
-                <div class="command">
-                    <div class="command-head">
-                        <span>Decrypt the sample</span>
-                        <button
-                            class="copy-key copy-key--small"
-                            type="button"
-                            data-copy-command
-                        >
-                            <svg
-                                class="icon icon-copy"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                                aria-hidden="true"
-                            >
-                                <rect
-                                    x="8"
-                                    y="8"
-                                    width="12"
-                                    height="12"
-                                    rx="1.5"
-                                />
-                                <path
-                                    d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"
-                                />
-                            </svg>
-                            <svg
-                                class="icon icon-check"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                aria-hidden="true"
-                            >
-                                <path d="M5 12.5l4.5 4.5L19 7.5" />
-                            </svg>
-                            <span class="copy-label">Copy</span>
-                        </button>
-                    </div>
-                    <pre><code>python oversec_stego.py decrypt --sample</code></pre>
-                </div>
+    <dialog class="dialog" id="cli-dialog" aria-labelledby="cli-title">
+        <div class="dialog-head">
+            <div>
+                <h2 id="cli-title">CLI</h2>
+                <p>The same crypto core, from the terminal.</p>
             </div>
-        </dialog>
+            <button class="icon-key" type="button" data-dialog-close aria-label="Close CLI dialog">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+            </button>
+        </div>
+        <div class="dialog-body">
+            <p class="dialog-note">
+                Run these from the project directory. The sample password is
+                built in.
+            </p>
 
-        <dialog class="dialog" id="about-dialog" aria-labelledby="about-title">
-            <div class="dialog-head">
+            <div class="command">
+                <div class="command-head">
+                    <span>Hide a message</span>
+                    <button class="copy-key copy-key--small" type="button" data-copy-command>
+                        <svg class="icon icon-copy" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <rect x="8" y="8" width="12" height="12" rx="1.5" />
+                            <path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" />
+                        </svg>
+                        <svg class="icon icon-check" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path d="M5 12.5l4.5 4.5L19 7.5" />
+                        </svg>
+                        <span class="copy-label">Copy</span>
+                    </button>
+                </div>
+                <pre><code>python oversec_stego.py encrypt --password "your password" --message "meet me at midnight"
+                        --output hidden.txt</code></pre>
+            </div>
+
+            <div class="command">
+                <div class="command-head">
+                    <span>Reveal a message</span>
+                    <button class="copy-key copy-key--small" type="button" data-copy-command>
+                        <svg class="icon icon-copy" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <rect x="8" y="8" width="12" height="12" rx="1.5" />
+                            <path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" />
+                        </svg>
+                        <svg class="icon icon-check" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path d="M5 12.5l4.5 4.5L19 7.5" />
+                        </svg>
+                        <span class="copy-label">Copy</span>
+                    </button>
+                </div>
+                <pre><code>python oversec_stego.py decrypt --password "your password" --text-file hidden.txt</code>
+                </pre>
+            </div>
+
+            <div class="command">
+                <div class="command-head">
+                    <span>Decrypt the sample</span>
+                    <button class="copy-key copy-key--small" type="button" data-copy-command>
+                        <svg class="icon icon-copy" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <rect x="8" y="8" width="12" height="12" rx="1.5" />
+                            <path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" />
+                        </svg>
+                        <svg class="icon icon-check" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path d="M5 12.5l4.5 4.5L19 7.5" />
+                        </svg>
+                        <span class="copy-label">Copy</span>
+                    </button>
+                </div>
+                <pre><code>python oversec_stego.py decrypt --sample</code></pre>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog class="dialog" id="about-dialog" aria-labelledby="about-title">
+        <div class="dialog-head">
+            <div>
+                <h2 id="about-title">How it works</h2>
+                <p>The format, the keys, and the one repair.</p>
+            </div>
+            <button class="icon-key" type="button" data-dialog-close aria-label="Close format notes">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+            </button>
+        </div>
+        <div class="dialog-body">
+            <p class="dialog-lead">
+                A compatible reimplementation of Oversec’s zero-width
+                format. It preserves the quirks that matter for real
+                messages.
+            </p>
+            <dl class="spec-list">
                 <div>
-                    <h2 id="about-title">How it works</h2>
-                    <p>The format, the keys, and the one repair.</p>
+                    <dt>Password key</dt>
+                    <dd>
+                        bcrypt cost 8 with the fixed SIMPLESYM salt. The key
+                        ID is bcrypt of SHA-384(raw)[32:48] at cost 6.
+                    </dd>
                 </div>
-                <button
-                    class="icon-key"
-                    type="button"
-                    data-dialog-close
-                    aria-label="Close format notes"
-                >
-                    <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                        aria-hidden="true"
-                    >
-                        <path d="M6 6l12 12M18 6 6 18" />
-                    </svg>
-                </button>
-            </div>
-            <div class="dialog-body">
-                <p class="dialog-lead">
-                    A compatible reimplementation of Oversec’s zero-width
-                    format. It preserves the quirks that matter for real
-                    messages.
+                <div>
+                    <dt>Session key</dt>
+                    <dd>
+                        bcrypt of the key ID and the per-message salt at
+                        cost 5. The first 8 bytes are the keyhash.
+                    </dd>
+                </div>
+                <div>
+                    <dt>Message key</dt>
+                    <dd>
+                        bcrypt of SHA-384(raw)[0:32] and the salt at cost 4.
+                        Both halves repeat the first 16 bytes, matching
+                        Oversec’s bug.
+                    </dd>
+                </div>
+                <div>
+                    <dt>Cipher</dt>
+                    <dd>
+                        ChaCha20 with an 8-byte IV, then Poly1305 over the
+                        ciphertext with zero padding and an 8-byte
+                        little-endian length.
+                    </dd>
+                </div>
+                <div>
+                    <dt>Encoding</dt>
+                    <dd>
+                        <code>OSC</code> magic, a delimited protobuf
+                        envelope, and the zero-width mapping
+                        <code>0x00–0x0F</code> to
+                        <code>U+FE00–U+FE0F</code>; the rest to
+                        <code>U+E0100–U+E01EF</code>.
+                    </dd>
+                </div>
+                <div>
+                    <dt>Repair</dt>
+                    <dd>
+                        If one byte is missing, the decoder tries every
+                        insertion and keeps the one the Poly1305 tag
+                        accepts.
+                    </dd>
+                </div>
+            </dl>
+            <section class="reference-list" aria-labelledby="references-title">
+                <h3 id="references-title">Original sources</h3>
+                <p>
+                    The format is defined by Oversec’s open-source crypto
+                    library. These references were read at commit
+                    <a href="https://github.com/oversecio/oversec_crypto/commit/9040ab646c7ab1ec9d1e2fff05782e07b5547547"
+                        target="_blank" rel="noopener noreferrer">9040ab6</a>.
                 </p>
-                <dl class="spec-list">
-                    <div>
-                        <dt>Password key</dt>
-                        <dd>
-                            bcrypt cost 8 with the fixed SIMPLESYM salt. The key
-                            ID is bcrypt of SHA-384(raw)[32:48] at cost 6.
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>Session key</dt>
-                        <dd>
-                            bcrypt of the key ID and the per-message salt at
-                            cost 5. The first 8 bytes are the keyhash.
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>Message key</dt>
-                        <dd>
-                            bcrypt of SHA-384(raw)[0:32] and the salt at cost 4.
-                            Both halves repeat the first 16 bytes, matching
-                            Oversec’s bug.
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>Cipher</dt>
-                        <dd>
-                            ChaCha20 with an 8-byte IV, then Poly1305 over the
-                            ciphertext with zero padding and an 8-byte
-                            little-endian length.
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>Encoding</dt>
-                        <dd>
-                            <code>OSC</code> magic, a delimited protobuf
-                            envelope, and the zero-width mapping
-                            <code>0x00–0x0F</code> to
-                            <code>U+FE00–U+FE0F</code>; the rest to
-                            <code>U+E0100–U+E01EF</code>.
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>Repair</dt>
-                        <dd>
-                            If one byte is missing, the decoder tries every
-                            insertion and keeps the one the Poly1305 tag
-                            accepts.
-                        </dd>
-                    </div>
-                </dl>
-                <p class="dialog-note">
-                    Not affiliated with Oversec. Use it on messages you have
-                    permission to read.
-                </p>
-            </div>
-        </dialog>
-    </body>
+                <ul>
+                    <li>
+                        <a href="https://github.com/zoasr/oversec-stego" target="_blank"
+                            rel="noopener noreferrer">zoasr/oversec-stego</a>
+                        — this workbench.
+                    </li>
+                    <li>
+                        <a href="https://github.com/oversecio/oversec" target="_blank"
+                            rel="noopener noreferrer">oversecio/oversec</a>
+                        — the Android app.
+                    </li>
+                    <li>
+                        <a href="https://github.com/oversecio/oversec_crypto" target="_blank"
+                            rel="noopener noreferrer">oversecio/oversec_crypto</a>
+                        — the crypto library:
+                        <a href="https://github.com/oversecio/oversec_crypto/blob/master/crypto/src/main/java/io/oversec/one/crypto/encoding/ZeroWidthXCoder.kt"
+                            target="_blank" rel="noopener noreferrer">ZeroWidthXCoder.kt</a>,
+                        <a href="https://github.com/oversecio/oversec_crypto/blob/master/crypto/src/main/java/io/oversec/one/crypto/symbase/KeyUtil.kt"
+                            target="_blank" rel="noopener noreferrer">KeyUtil.kt</a>,
+                        <a href="https://github.com/oversecio/oversec_crypto/blob/master/crypto/src/main/java/io/oversec/one/crypto/symbase/OversecChacha20Poly1305.kt"
+                            target="_blank" rel="noopener noreferrer">OversecChacha20Poly1305.kt</a>,
+                        <a href="https://github.com/oversecio/oversec_crypto/blob/master/crypto/src/main/java/io/oversec/one/crypto/symsimple/SimpleSymmetricCryptoHandler.kt"
+                            target="_blank" rel="noopener noreferrer">SimpleSymmetricCryptoHandler.kt</a>,
+                        <a href="https://github.com/oversecio/oversec_crypto/blob/master/crypto/src/main/proto/inner.proto"
+                            target="_blank" rel="noopener noreferrer">inner.proto</a>,
+                        <a href="https://github.com/oversecio/oversec_crypto/blob/master/crypto/src/main/proto/outer.proto"
+                            target="_blank" rel="noopener noreferrer">outer.proto</a>.
+                    </li>
+                    <li>
+                        SpongyCastle
+                        <a href="https://github.com/rtyley/spongycastle/blob/spongy-master/core/src/main/java/org/spongycastle/crypto/generators/BCrypt.java"
+                            target="_blank" rel="noopener noreferrer">BCrypt.java</a>
+                        — the raw bcrypt variant.
+                    </li>
+                </ul>
+            </section>
+            <p class="dialog-note">
+                Not affiliated with Oversec. Use it on messages you have
+                permission to read.
+            </p>
+        </div>
+    </dialog>
+</body>
+
 </html>

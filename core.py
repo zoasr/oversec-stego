@@ -13,6 +13,16 @@ formats that are needed to hide and reveal a text message:
 The code is deliberately dependency-light: PyCryptodome for ChaCha20 and
 Poly1305, the standard library for everything else. It is a compatible
 reimplementation, not an official Oversec product.
+
+Reference implementation (GPL-3.0), from the Oversec project:
+https://github.com/oversecio/oversec_crypto
+
+* ``encoding/ZeroWidthXCoder.kt``: zero-width mapping, ``OSC`` magic, fillers
+* ``symbase/KeyUtil.kt``: bcrypt key derivation, including the repeated-half
+  ``getEncryptionKey`` quirk
+* ``symbase/OversecChacha20Poly1305.kt``: ChaCha20 + Poly1305 record framing
+* ``symsimple/SimpleSymmetricCryptoHandler.kt``: SIMPLESYM envelope
+* ``proto/inner.proto`` and ``proto/outer.proto``: protobuf messages
 """
 
 from __future__ import annotations
@@ -25,8 +35,18 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
-from Crypto.Cipher import ChaCha20
-from Crypto.Hash.Poly1305 import Poly1305_MAC
+try:
+    from Crypto.Cipher import ChaCha20
+    from Crypto.Hash.Poly1305 import Poly1305_MAC
+except ModuleNotFoundError as exc:  # pragma: no cover - depends on the interpreter
+    if exc.name and exc.name.startswith("Crypto"):
+        raise SystemExit(
+            "PyCryptodome is required but is not installed for this Python.\n"
+            "Install it with:\n"
+            "  python3 -m pip install -r requirements.txt\n"
+            "Or start the app with ./start.sh, which uses the local .venv."
+        ) from exc
+    raise
 
 import bcrypt_sc
 
@@ -748,11 +768,11 @@ def sample_info() -> dict:
         "encoded_len": len(SAMPLE_ENCODED),
         "carrier": SAMPLE_CARRIER,
         "password": SAMPLE_PASSWORD,
-        "note": (
-            "The original tweet payload, with a display carrier added. One "
-            "ciphertext byte is missing; the decoder recovers it against the "
-            "Poly1305 tag."
-        ),
+        # "note": (
+        #     "The original tweet payload, with a display carrier added. One "
+        #     "ciphertext byte is missing; the decoder recovers it against the "
+        #     "Poly1305 tag."
+        # ),
     }
 
 
