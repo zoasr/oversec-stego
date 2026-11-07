@@ -9,6 +9,13 @@ venv/
 .artifacts/
 sloplint.log
 
+# Native bcrypt build artifacts (bcrypt_sc.dll is checked in for Windows)
+*.o
+libbcrypt_sc.so
+bcrypt_sc.so
+libbcrypt_sc.dylib
+bcrypt_sc.dylib
+
 # Local Hallmark salt; the design log is kept
 .hallmark/salt
 
